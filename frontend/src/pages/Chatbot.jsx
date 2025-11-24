@@ -1,5 +1,7 @@
 import { useState } from "react";
+// Removed useNavigate import
 import MovieCard from "../components/MovieCard";
+// Removed likeMovie import
 
 function Chatbot() {
   const [messages, setMessages] = useState([]);
@@ -7,6 +9,9 @@ function Chatbot() {
   const [aiMessage, setAiMessage] = useState("");
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(false);
+  // Removed useNavigate initialization
+
+  // Removed handleLikeMovie function
 
   const sendMessage = async () => {
     if (!input.trim()) return;

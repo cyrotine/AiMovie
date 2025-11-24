@@ -12,7 +12,10 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 # ---------- CONFIG ----------
 # Absolute CSV path you provided (Example A)
-CSV_PATH = os.getenv("MOVIE_CSV_PATH", "/Users/capybara/Desktop/MOVIERECOMMENDATION/movie-recommender-ai/backend/mymoviedb.csv")
+CSV_PATH = os.getenv("MOVIE_CSV_PATH",
+     os.path.join(os.path.dirname(__file__), "cleaned_movies.csv")
+)
+
 
 
 # Cache files (stored next to CSV)
@@ -65,6 +68,7 @@ df = df.reset_index(drop=True)
 
 # ---------- column heuristics ----------
 cols = {c.lower(): c for c in df.columns}
+name_col=cols.get("name", df.columns[0])
 title_col = cols.get("title", df.columns[0])
 genre_col = cols.get("genre", cols.get("genres", None))
 overview_col = cols.get("overview", None)
@@ -479,3 +483,77 @@ def recommend_from_quiz(filters, top_k=12):
         results.append(row_to_movie(i, row))
 
     return results
+
+
+
+
+from .gemini_query_expander import expand_query_with_gemini
+
+def recommend_from_name_and_genre(movie_name: str, genre: str):
+    """
+    Filter by movie name + genre.
+    If <10 results, call Gemini 2.5 Flash to EXPAND the query,
+    then feed the expanded query into TF-IDF search.
+    """
+
+    # Normalize
+    movie_name_raw = movie_name or ""
+    genre_raw = genre or ""
+
+    name_clean = movie_name_raw.lower().strip()
+    genre_clean = genre_raw.lower().strip()
+
+    # -------------------- BASIC FILTERING --------------------
+    filtered = df.copy()
+
+    if name_clean:
+        filtered = filtered[
+            filtered[name_col]
+            .astype(str)
+            .str.lower()
+            .str.contains(name_clean)
+        ]
+
+    if genre_clean:
+        filtered = filtered[
+            filtered[genre_col]
+            .astype(str)
+            .str.lower()
+            .str.contains(genre_clean)
+        ]
+
+    # Convert to results list
+    results = [
+        row_to_movie(idx, row)
+        for idx, row in filtered.head(10).iterrows()
+    ]
+
+    # If enough, return
+    if len(results) >= 10:
+        return results[:10]
+
+    # -------------------- GEMINI QUERY EXPANSION --------------------
+    needed = 10 - len(results)
+    raw_query = f"{movie_name_raw} {genre_raw}".strip()
+
+    expanded_query = expand_query_with_gemini(raw_query)
+
+    # -------------------- TF-IDF FALLBACK --------------------
+    tfidf_idxs = _tfidf_search_idxs(expanded_query, top_k=needed + 10)
+
+    for i in tfidf_idxs:
+        row = df.iloc[i]
+        movie_obj = row_to_movie(i, row)
+
+        if movie_obj not in results:
+            results.append(movie_obj)
+
+        if len(results) >= 10:
+            break
+
+    return results[:10]
+
+
+
+
+

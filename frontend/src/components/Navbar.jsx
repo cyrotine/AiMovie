@@ -29,16 +29,6 @@ function Navbar() {
               Home
             </Link>
             <Link
-              to="/quiz"
-              className={`px-3 sm:px-4 py-2 rounded-lg transition-all ${
-                isActive('/quiz')
-                  ? 'bg-[#22c1c3] text-[#0b0f14] font-semibold'
-                  : 'text-[#9AA7B3] hover:text-[#E6EEF3] hover:bg-[#1a1f24]'
-              }`}
-            >
-              Quiz
-            </Link>
-            <Link
               to="/chat"
               className={`px-3 sm:px-4 py-2 rounded-lg transition-all ${
                 isActive('/chat')
@@ -56,7 +46,17 @@ function Navbar() {
                   : 'text-[#9AA7B3] hover:text-[#E6EEF3] hover:bg-[#1a1f24]'
               }`}
             >
-              Recommendations
+              Search
+            </Link>
+            <Link
+              to="/for-you"
+              className={`px-3 sm:px-4 py-2 rounded-lg transition-all ${
+                isActive('/for-you')
+                  ? 'bg-[#22c1c3] text-[#0b0f14] font-semibold'
+                  : 'text-[#9AA7B3] hover:text-[#E6EEF3] hover:bg-[#1a1f24]'
+              }`}
+            >
+              For You
             </Link>
           </div>
         </div>

@@ -24,7 +24,7 @@ function Home() {
             className="group relative px-8 py-4 bg-gradient-to-r from-[#22c1c3] to-[#fdbb2d] rounded-lg font-semibold text-lg text-[#0b0f14] hover:shadow-xl hover:scale-105 transition-all duration-300 flex items-center space-x-2 min-w-[200px] justify-center"
           >
             <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-            <span>Take Quiz</span>
+            <span>Search Recommendation</span>
           </button>
 
           <button

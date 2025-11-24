@@ -1,11 +1,14 @@
 
 import os
 import json
-from fastapi import FastAPI
+from fastapi import FastAPI # Removed APIRouter
 from pydantic import BaseModel
 import requests
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
+from typing import List
+from fastapi import Request # Moved import to top
+from fastapi.responses import JSONResponse # Moved import to top
 
 load_dotenv()
 
@@ -27,13 +30,13 @@ app.add_middleware(
 
 # Load movie database as a list of dicts (from CSV or JSON)
 MOVIES = None
-if os.path.isfile("backend/mymoviedb.csv"):
+if os.path.isfile("backend/cleaned_movies.csv"):
     try:
         from recommender import safe_read_csv
     except ImportError:
         from .recommender import safe_read_csv
     try:
-        df = safe_read_csv("backend/mymoviedb.csv")
+        df = safe_read_csv("backend/cleaned_movies.csv")
         MOVIES = df.to_dict(orient="records")
     except Exception as e:
         print(f"Error loading CSV: {e}")
@@ -55,28 +58,68 @@ class QuizRequest(BaseModel):
     yearEnd: str = ""
     language: str = ""
 
-@app.post("/api/recommend/quiz")
-def quiz_recommend(req: QuizRequest):
-    movies = recommend_from_quiz(req.dict())
+class GenreSelectionRequest(BaseModel):
+    genres: list[str]
+
+# In a real application, you would associate these genres with a user ID
+# For demonstration, we'll store them in a simple dictionary or just process them.
+# A more robust solution would involve user authentication and a database.
+_user_selected_genres = {} # Temporary storage
+
+@app.post("/api/genres")
+async def select_genres(req: GenreSelectionRequest):
+    # In a real app, 'user_id' would come from authentication
+    user_id = "temp_user" # Placeholder for a logged-in user
+    _user_selected_genres[user_id] = req.genres
+    print(f"Received genres for user {user_id}: {req.genres}")
+    return {"message": "Genres saved successfully", "selected_genres": req.genres}
+
+@app.get("/api/recommend/genres")
+async def get_genre_recommendations():
+    user_id = "temp_user" # Placeholder for a logged-in user
+    genres_to_recommend = _user_selected_genres.get(user_id, [])
+    
+    if not genres_to_recommend:
+        return {"movies": []}
+
+    # Prepare a QuizRequest-like dictionary for recommend_from_quiz
+    quiz_params = {
+        "genres": ", ".join(genres_to_recommend), # Join genres with comma for existing function
+        "average_rating": 0.0,
+        "popularity": 0.0,
+        "yearStart": "",
+        "yearEnd": "",
+        "language": ""
+    }
+    
+    # Assuming recommend_from_quiz can handle multiple genres separated by commas
+    movies = recommend_from_quiz(quiz_params)
     return {"movies": movies}
 
-class ChatQuery(BaseModel):
-    message: str
+# @app.post("/api/recommend/quiz")
+# def quiz_recommend(req: QuizRequest):
+#     movies = recommend_from_quiz(req.dict())
+#     return {"movies": movies}
 
+
+# Accept both {name, genre} and {message} for compatibility
 @app.post("/api/recommend/chat")
-def chat_ai(req: ChatQuery):
-    # Directly use the local recommender function for all queries
-    movies = recommend_from_query(req.message)
-    if movies:
-        return {
-            "aiMessage": f"Here are results for your query: '{req.message}'",
-            "movies": movies
-        }
-    else:
-        return {
-            "aiMessage": f"No movies found for: '{req.message}'",
-            "movies": []
-        }
+async def chat_ai(request: Request):
+    data = await request.json()
+
+    if 'movie_name' in data or 'genre' in data:
+        name = data.get('movie_name', '')
+        genre = data.get('genre', '')
+        from .recommender import recommend_from_name_and_genre
+        movies = recommend_from_name_and_genre(name, genre)
+        return {"movies": movies}
+
+    elif 'message' in data:
+        movies = recommend_from_query(data['message'])
+        return {"movies": movies}
+
+    return JSONResponse({"movies": []}, status_code=400)
+
 
 
 if __name__ == "__main__":

@@ -57,10 +57,33 @@ const MOCK_MOVIES = [
   },
 ];
 
+const BASE_URL = 'http://localhost:8000/api';
+
+export const backendApi = {
+  get: async (path) => {
+    const res = await fetch(`${BASE_URL}${path}`);
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    return res.json().then(data => ({ data })); // Wrap in data object to mimic axios response structure
+  },
+  post: async (path, body) => {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    return res.json().then(data => ({ data })); // Wrap in data object to mimic axios response structure
+  },
+};
+
 export const getRecommendations = async (preferences) => {
-  // try backend first
+  // This function is still used by Quiz.jsx, but the recommendations page now uses backendApi.get('/recommend/genres')
   try {
-    const res = await fetch('http://localhost:8000/api/recommend/quiz', {
+    const res = await fetch(`${BASE_URL}/recommend/quiz`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(preferences || {}),
@@ -71,7 +94,6 @@ export const getRecommendations = async (preferences) => {
     const data = await res.json();
     const movies = data.movies || [];
 
-    // backend may return an array of strings (titles) or rich objects
     if (movies.length > 0 && typeof movies[0] === 'string') {
       return movies.map((t, i) => ({
         id: i,
@@ -82,7 +104,6 @@ export const getRecommendations = async (preferences) => {
       }));
     }
 
-    // assume objects with title/poster/overview/rating
     return movies.map((m, i) => ({
       id: m.id ?? i,
       title: m.title || '',
@@ -91,7 +112,6 @@ export const getRecommendations = async (preferences) => {
       rating: m.rating ?? null,
     }));
   } catch (e) {
-    // fallback to mock
     const shuffled = [...MOCK_MOVIES].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 6);
   }
@@ -99,7 +119,7 @@ export const getRecommendations = async (preferences) => {
 
 export const sendChatMessage = async (message) => {
   try {
-    const res = await fetch('http://localhost:8000/api/recommend/chat', {
+    const res = await fetch(`${BASE_URL}/recommend/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message }),
@@ -107,13 +127,12 @@ export const sendChatMessage = async (message) => {
 
     if (!res.ok) throw new Error('Bad response');
 
-  const data = await res.json();
-  const movies = data.movies || [];
-  const aiInterpretation = data.aiInterpretation || '';
+    const data = await res.json();
+    const movies = data.movies || [];
+    const aiInterpretation = data.aiInterpretation || '';
 
-  // movies may be objects
-  const movieTitles = movies.map((m) => (typeof m === 'string' ? m : m.title || '')).filter(Boolean);
-  return aiInterpretation + ' — ' + movieTitles.join(', ');
+    const movieTitles = movies.map((m) => (typeof m === 'string' ? m : m.title || '')).filter(Boolean);
+    return aiInterpretation + ' — ' + movieTitles.join(', ');
   } catch (e) {
     const responses = [
       "That sounds interesting! Here are a few picks: The Matrix, Inception, Interstellar.",
